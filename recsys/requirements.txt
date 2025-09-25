@@ -1,0 +1,15 @@
+# Core scientific stack
+numpy==2.1.1
+pandas==2.2.3
+scikit-learn==1.5.2
+matplotlib==3.9.2
+tqdm==4.67.1
+
+# Jupyter for notebooks
+jupyter==1.0.0
+notebook==7.2.2
+
+# PyTorch ecosystem (install separately with index URL!)
+torch
+torchvision
+torchaudio
