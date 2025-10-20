@@ -1,0 +1,20 @@
+# environment.yml
+channels:
+  - conda-forge
+  - defaults
+# Use prefix for a path-based env; adjust if your folder differs
+prefix: ./venv
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - ipykernel
+  # optional quality-of-life:
+  - jupyterlab
+  - pip
+  # if you need any pip-only packages, add them like this:
+  # - pip:
+  #   - some-pip-only-package==1.2.3
