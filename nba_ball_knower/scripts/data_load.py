@@ -18,6 +18,7 @@ import sys
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -51,9 +52,14 @@ def get_player_df():
 
 ## pull in team games 
 def get_team_games_df(teams_df):
+
+    ## get yesterday's date in yyyy-mm-dd format
+    yesterday = datetime.now() - timedelta(1)
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
+
     team_games = [] 
     for t in teams_df['team_id']:
-        games_df = leaguegamefinder.LeagueGameFinder(team_id_nullable=t).get_data_frames()[0]
+        games_df = leaguegamefinder.LeagueGameFinder(team_id_nullable=t,date_from_nullable=yesterday_str,date_to_nullable=yesterday_str).get_data_frames()[0]
         # add a date time processed column
         games_df["date_time_processed"] = pd.Timestamp.utcnow()
         games_df["date_time_processed"] = games_df["date_time_processed"].astype(str)
@@ -117,10 +123,10 @@ def prepare_team_games_data_for_supabase(team_games_df):
     fact_team_games_df["game_date"] = pd.to_datetime(fact_team_games_df["game_date"]).dt.date
     
     # Define cutoff
-    cutoff_date = pd.to_datetime("2025-12-03").date()
+    # cutoff_date = pd.to_datetime("2025-12-03").date()
 
     # Filter rows
-    fact_team_games_df = fact_team_games_df[fact_team_games_df["game_date"] < cutoff_date]
+    # fact_team_games_df = fact_team_games_df[fact_team_games_df["game_date"] < cutoff_date]
 
     # 1) Ensure datetime, then convert to ISO string
     fact_team_games_df["game_date"] = (
