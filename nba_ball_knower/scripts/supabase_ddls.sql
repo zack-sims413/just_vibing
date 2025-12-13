@@ -19,7 +19,6 @@ create table if not exists staging.dim_players (
     last_name           text,
     full_name           text,
     is_active           boolean,
-    team_id             integer,
     date_time_processed timestamptz not null,
 
     constraint dim_players_team_fk
