@@ -1,6 +1,6 @@
 -- Dimension: Teams
-drop table public.dim_teams;
-create table public.dim_teams (
+drop table staging.dim_teams;
+create table staging.dim_teams (
     team_id             integer primary key,
     full_name           text,
     abbreviation        text,
@@ -13,7 +13,7 @@ create table public.dim_teams (
 
 
 -- Dimension: Players
-create table if not exists public.dim_players (
+create table if not exists staging.dim_players (
     player_id           integer primary key,
     first_name          text,
     last_name           text,
@@ -28,7 +28,7 @@ create table if not exists public.dim_players (
 
 
 -- Fact: team games
-create table if not exists public.fact_team_games (
+create table if not exists staging.fact_team_games (
     season_id           text,
     team_id             integer,
     team_abbreviation   text,
@@ -68,7 +68,7 @@ create table if not exists public.fact_team_games (
 
 
 -- create player season stats 
-create table if not exists public.fact_player_season_stats (
+create table if not exists staging.fact_player_season_stats (
     player_id               integer,
     player_name             text,
     nickname                text,

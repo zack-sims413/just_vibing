@@ -57,15 +57,19 @@ def get_team_games_df(teams_df):
     yesterday = datetime.now() - timedelta(1)
     yesterday_str = yesterday.strftime('%Y-%m-%d')
 
-    team_games = [] 
-    for t in teams_df['team_id']:
-        games_df = leaguegamefinder.LeagueGameFinder(team_id_nullable=t,date_from_nullable=yesterday_str,date_to_nullable=yesterday_str).get_data_frames()[0]
-        # add a date time processed column
-        games_df["date_time_processed"] = pd.Timestamp.utcnow()
-        games_df["date_time_processed"] = games_df["date_time_processed"].astype(str)
-        team_games.append(games_df)
+    # Pull games for all teams with one call 
+    games_df = leaguegamefinder.LeagueGameFinder(date_from_nullable=yesterday_str,date_to_nullable=yesterday_str,timeout=90).get_data_frames()[0]
+    # add a date time processed column
+    games_df["date_time_processed"] = pd.Timestamp.utcnow()
+    games_df["date_time_processed"] = games_df["date_time_processed"].astype(str)
 
-    team_games_df = pd.concat(team_games)
+    # Filter games to get only relavant teams 
+    team_ids = teams_df["team_id"].unique()
+
+    team_games_df = games_df[
+        games_df["TEAM_ID"].isin(team_ids)
+    ].reset_index(drop=True)
+
     return team_games_df
 
 ## prepare team_games_data for supabase upload
@@ -260,19 +264,30 @@ def connect_to_supabase():
     return supabase
 
 ## upsert in chunks
-def upsert_in_chunks(table_name, records, chunk_size=500):
-    supabase = connect_to_supabase()
-    total_records = len(records)
-    for start in range(0, total_records, chunk_size):
-        end = start + chunk_size
-        chunk = records[start:end]
-        print(f"Upserting records {start} to {end} into {table_name}...")
-        response = supabase.table(table_name).upsert(chunk).execute()
-        if response.status_code != 200:
-            print(f"Error upserting chunk {start} to {end}: {response.data}")
+def upsert_in_chunks(
+    table_name,
+    records,
+    chunk_size=500,
+    conflict_cols=None,
+    schema="public",   # 👈 default schema
+):
+    for i in range(0, len(records), chunk_size):
+        chunk = records[i:i + chunk_size]
+
+        # Choose schema explicitly
+        query = supabase.schema(schema).table(table_name)
+
+        if conflict_cols:
+            query = query.upsert(
+                chunk,
+                on_conflict=",".join(conflict_cols),
+            )
         else:
-            print(f"Successfully upserted records {start} to {end}.")
-    return "upset complete"
+            query = query.insert(chunk)
+
+        query.execute()
+        print(f"{schema}.{table_name}: upserted rows {i}–{i + len(chunk) - 1}")
+
 
 ## run the main ETL process
 def run_etl_process():
@@ -287,7 +302,14 @@ def run_etl_process():
 
     # Step 4: Upsert team games data into Supabase
     fact_team_games_records = fact_team_games_df.to_dict(orient="records")
-    upsert_in_chunks("fact_team_games", fact_team_games_records, chunk_size=500)
+
+    upsert_in_chunks(
+        "fact_team_games",
+        fact_team_games_records,
+        chunk_size=400,
+        conflict_cols=["game_id", "team_id"],
+        schema="staging"
+    )
 
     # Step 5: Get player season stats data
     player_season_df_compiled = get_player_season_stats_df()
@@ -297,7 +319,14 @@ def run_etl_process():
 
     # Step 7: Upsert player season stats data into Supabase
     player_season_records = player_season_df_prepared.to_dict(orient="records")
-    upsert_in_chunks("fact_player_season_stats", player_season_records, chunk_size=500)
+    # fact_player_season_stats
+    upsert_in_chunks(
+        "fact_player_season_stats",
+        player_season_records,
+        chunk_size=500,
+        conflict_cols=["player_id", "season"],
+        schema="staging"
+    )
 
     print("ETL process completed successfully.")
 
